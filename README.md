@@ -1,9 +1,11 @@
-# Advanced RealTime Road Detection and Autonomous Vehicle Control
+# Advanced RealTime Road Detection and Autonomous Vehicle Control using Convolutional Neural Network
 
 ![](demo.gif)
 
 # intro
 The goal of this project is to make an electric ATV drive autonomosly over normal roads using an xbox kinect Camera and state of the art video processing technolgies. The electric ATV is fitted with an windshield wiper motor and costum control/feedback circuitry to control the steering and acceleration. An Arduino with Serial comminucation is used to communicate with the main computer also fitted on the ATV. The main computer has an GTX1080 to run the detection model. The Detection model and Control module are written in python. 
+
+This project is still worked on so not everything listed below is implemented yet.
 
 ## Detection and Control is done in these steps:
 - NVIDIA'S semantic-segmentation model returns every 10th frame an array with classes per pixel
@@ -48,6 +50,7 @@ https://drive.google.com/file/d/1aGdA1WAKKkU2y-87wSOE1prwrIzs_L-h/view
 ```
 CUDA_VISIBLE_DEVICES=0 python3 start.py --video KleinMoorst.mp4 --snapshot ./pretrained_models/cityscapes_cv0_seresnext50_nosdcaug.pth --arch network.deepv3.DeepSRNX50V3PlusD_m1
 ```
+To use a costum video change the text behind --video to any video path. 
 
 
 # NVIDIA'S semantic-segmentation
