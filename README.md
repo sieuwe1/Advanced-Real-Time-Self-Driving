@@ -2,12 +2,12 @@
 
 ![](demo.gif)
 
-# intro
+# Intro
 The goal of this project is to make an electric ATV drive autonomosly over normal roads using an xbox kinect Camera and state of the art video processing technolgies. The electric ATV is fitted with an windshield wiper motor and costum control/feedback circuitry to control the steering and acceleration. An Arduino with Serial comminucation is used to communicate with the main computer also fitted on the ATV. The main computer has an GTX1080 to run the detection model. The Detection model and Control module are written in python. 
 
-This project is still worked on so not everything listed below is implemented yet.
+## ** NOTE: This project is still worked on so not everything listed below is implemented yet. Also the detection algorithm is not final yet. I am making changes to it every day!**
 
-## Detection and Control is done in these steps:
+## How is Detection and Control working? 
 - NVIDIA'S semantic-segmentation model returns every 10th frame an array with classes per pixel
 - Road edges are extracted from the array with connected component filter
 - Road center line is calculated from road edges with moving average filter
@@ -18,7 +18,7 @@ This project is still worked on so not everything listed below is implemented ye
 - Steering and speed commands are send over Serial to Arduino
 - Arduino performs commands
 
-## based on the great work of
+## Based on the great work of
 https://github.com/NVIDIA/semantic-segmentation/
 
 # Installation
