@@ -4,6 +4,9 @@ import argparse
 from PIL import Image
 import numpy as np
 import cv2
+from scipy import ndimage
+import skimage
+from skimage import morphology
 
 import torch
 from torch.backends import cudnn
@@ -20,7 +23,7 @@ from steering import *
 parser = argparse.ArgumentParser(description='demo')
 parser.add_argument('--video', type=str, default='', help='path to video', required=True)
 parser.add_argument('--snapshot', type=str, default='./pretrained_models/cityscapes_best.pth', help='pre-trained checkpoint', required=True)
-parser.add_argument('--arch', type=str, default='network.deepv3.DeepWV3Plus', help='network architecture used for inference', required=True)
+parser.add_argument('--arch', type=str, default='network.deepv3.DeepWV3Plus', help='network architecture used for inference')
 args = parser.parse_args()
 print(args)
 assert_and_infer_cfg(args, train_mode=False)
@@ -47,6 +50,15 @@ centerPoints = []
 
 center =(0+int(512 / 2),0+int(256 / 2))
 
+def filterConnectedComponents(pred):
+    label_img, cc_num = ndimage.label(pred)
+    sizes = ndimage.sum(pred, label_img, range(cc_num+1))
+    print(sizes)
+    mask_size = sizes < 1500
+    remove_pixel = mask_size[label_img]
+    label_img[remove_pixel] = 0
+    return label_img
+
 while True:
 
     ret, img = cap.read()
@@ -68,17 +80,45 @@ while True:
         pred = pred.cpu().numpy().squeeze()
         pred = np.argmax(pred, axis=0)
         
-        colorized = args.dataset_cls.colorize_mask(pred)
+        colorized1 = args.dataset_cls.colorize_mask(pred)
+        cv2.imshow("net OUT",np.array(colorized1.convert('RGB')))
+
+        #apply connected component method to find largest connected object
+        smooth_pred = ndimage.gaussian_filter(pred,3.0)       
+
+        filtered_pred = filterConnectedComponents(smooth_pred)
+
+       # nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(np.array(pred,dtype=np.uint8))
+       # sizes = stats[1:,-1]; nb_components = nb_components - 1
         
-        cv2.imshow("net OUT",np.array(colorized.convert('RGB')))
+        #your answer image
+       # img2 = np.zeros((output.shape))
+        #for every component in the image, you keep it only if it's above min_size
+       # for i in range(0, nb_components):
+       #     if sizes[i] >= 1000:
+       #         img2[output == i + 1] = 255
 
-        centerPoints, img = getLines(pred, img)
+       # cv2.imshow("filtered cv2", img2)
 
-        img = getSteeringCommand(center, centerPoints, img)
+        #apply gaussin filter for smoothing
+       # max_pred = ndimage.gaussian_filter(max_pred, 1.0)
+
+        colorized = args.dataset_cls.colorize_mask(filtered_pred)
+
+        cv2.imshow("net OUT filtered",np.array(colorized.convert('RGB')))
+        
+        centerPoints, img = getLines(filtered_pred, img)
+
+        if len(centerPoints) > 5:
+            img = getSteeringCommand(center, centerPoints, img)
         cv2.imshow("OUT", img)
    
-    ch = 0xFF & cv2.waitKey(1)
-    if ch == 27:
+    k = cv2.waitKey(1)
+    if k == 27:
         break
-
     framecount += 1
+
+cv2.imshow("last",img)
+cv2.waitKey(0)
+
+

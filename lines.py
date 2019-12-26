@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import math
 import pandas as pd
+from collections import deque
 #array = np.loadtxt("/home/sieuwe/Desktop/Projects/semantic-segmentation-master/test.txt", delimiter=',')
 
 
@@ -9,8 +10,9 @@ import pandas as pd
 #img = cv2.resize(img, (639, 185))
 
 maxDistance = 30
-maxVisionDistance = 10
 minRoadWidth = 30
+prevRoadWidthList = deque(maxlen = 50) 
+prevRoadWidthList.append(100)
 
 def getLines(array,img):
 
@@ -22,28 +24,33 @@ def getLines(array,img):
     lineListright = []
     totalCount = 0
     preVal = 99
-
+    preIndexX = 0
+    preIndex = (0,0)
+    
     #get sides of the road
     for index, x in np.ndenumerate(array.astype(np.float)):
-        
+
         if(preVal > 0 and x == 0):
             lineListleft.append((index[1],index[0])) 
-        
-        elif(preVal == 0 and x > 0):
-            lineListright.append((index[1],index[0])) 
+            #print("L: " + str((index[1],index[0])))
 
+        if(preVal == 0 and x > 0):
+            #print("R: " + str((preIndex[1],preIndex[0])))
+            lineListright.append((preIndex[1],preIndex[0]))
+
+        preIndex = index
         preVal = x
         totalCount+=1
 
-    lineListleft.reverse()
-    lineListright.reverse()
+    #lineListleft.reverse()
+    #lineListright.reverse()
 
     #get length of shortest side 
     length = 0
     if(len(lineListleft) > len(lineListright)):
-        length = len(lineListright) - maxVisionDistance
-    else:
-        length = len(lineListleft) - maxVisionDistance
+        length = len(lineListright) - 1
+    else: 
+        length = len(lineListleft) - 1
         
     centerPointsY = []
     centerPointsX = []
@@ -51,8 +58,15 @@ def getLines(array,img):
     #filter bad points and draw center/side lines
     leftpoint = (0,0)
     rightpoint = (0,0)
-    for p in range(length):
 
+    roadWidthStartIndex = round(length / 3)
+    roadWidthList = []
+    maxRoadWidth = round(sum(prevRoadWidthList) / len(prevRoadWidthList) *1.15)
+    
+   # print(maxRoadWidth)
+   # global prevRoadWidthList
+    
+    for p in range(length):
         if calculateDistance(lineListleft[p][0], lineListleft[p][1], lineListleft[p+1][0], lineListleft[p+1][1]) < maxDistance:
             leftpoint = lineListleft[p+1]
             cv2.line(img, lineListleft[p], lineListleft[p+1], [0, 255, 0], 3)
@@ -63,14 +77,25 @@ def getLines(array,img):
         
         roadWidth = abs(leftpoint[0] - rightpoint[0])
 
-        if roadWidth > minRoadWidth:
+        if roadWidth > minRoadWidth and roadWidth < maxRoadWidth:
             centerPointsX.append(leftpoint[0] + round(roadWidth / 2))
             centerPointsY.append(leftpoint[1])
+        
+        #something wrong with roadwidth
+       # else:
+       #     centerPointsX.append(leftpoint[0] + round(maxRoadWidth / 2))
+       #     centerPointsY.append(leftpoint[1])
+
+
+        if p > roadWidthStartIndex:
+            roadWidthList.append(roadWidth)
+    
+    prevRoadWidthList.append(sum(roadWidthList) / len(roadWidthList))
 
     #moving average filter on centerline
     filteredCenterPointsX = []
     if len(centerPointsX) > 10:
-        filteredCenterPointsX = movingaverage(centerPointsX, 30)
+        filteredCenterPointsX = movingaverage(centerPointsX,15)
 
     finalCenterPointsList = []
 
