@@ -24,17 +24,19 @@ time.sleep(4)
 
 while True:
     currentSteeringAngle, currentThrottle = readValue()
-    
-    if currentSteeringAngle < minSteerSensorValue:
-        minSteerSensorValue = currentSteeringAngle
-    elif currentSteeringAngle > maxSteerSensorValue:
-        maxSteerSensorValue = currentSteeringAngle
-    
-    if currentThrottle < minThrottleSensorValue:
-        minThrottleSensorValue = currentThrottle
-    elif currentThrottle > maxThrottleSensorValue:
-        maxThrottleSensorValue = currentThrottle
 
-    print("minSteerSensorValue > " + str(minSteerSensorValue) + " maxSteerSensorValue > " + str(maxSteerSensorValue) + " minThrottleSensorValue > " + str(minThrottleSensorValue) + " maxThrottleSensorValue > " + str(maxThrottleSensorValue))
+    if currentSteeringAngle != None or currentThrottle != None:
+
+        if currentSteeringAngle < minSteerSensorValue:
+            minSteerSensorValue = currentSteeringAngle
+        elif currentSteeringAngle > maxSteerSensorValue:
+            maxSteerSensorValue = currentSteeringAngle
+        
+        if currentThrottle < minThrottleSensorValue:
+            minThrottleSensorValue = currentThrottle
+        elif currentThrottle > maxThrottleSensorValue:
+            maxThrottleSensorValue = currentThrottle
+
+        print("minSteerSensorValue > " + str(minSteerSensorValue) + " maxSteerSensorValue > " + str(maxSteerSensorValue) + " minThrottleSensorValue > " + str(minThrottleSensorValue) + " maxThrottleSensorValue > " + str(maxThrottleSensorValue))
 
     time.sleep(0.1) 

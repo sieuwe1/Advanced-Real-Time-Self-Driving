@@ -64,6 +64,15 @@ framecount = 0
 
 prevFrame = None
 
+def adjust_gamma(image, gamma):
+    image = cv2.resize(image,(512,256))
+    #invGamma = 1.0 / gamma
+    #table = np.array([((i / 255.0) ** invGamma) * 255
+    #for i in np.arange(0, 256)]).astype("uint8")
+    #return cv2.LUT(image, table)
+    return image
+
+
 def filterConnectedComponents(pred):
     label_img, cc_num = ndimage.label(pred)
     sizes = ndimage.sum(pred, label_img, range(cc_num+1))
@@ -72,7 +81,6 @@ def filterConnectedComponents(pred):
     remove_pixel = mask_size[label_img]
     label_img[remove_pixel] = 0
     return label_img
-
 
 def map(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
@@ -106,8 +114,7 @@ while True:
     if not ret:
         break
 
-    img = cv2.resize(img,(512,256))
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = adjust_gamma(img,2)
     cv2.imshow("IN", img)
 
     if framecount % 10 == 0:   

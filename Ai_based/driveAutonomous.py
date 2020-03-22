@@ -72,6 +72,13 @@ def filterConnectedComponents(pred):
     label_img[remove_pixel] = 0
     return label_img
 
+#brigthen image because xbox kinect rgb cam is pretty shitty
+def adjust_gamma(image, gamma):
+    image = cv2.resize(image,(512,256))
+    invGamma = 1.0 / gamma
+    table = np.array([((i / 255.0) ** invGamma) * 255
+    for i in np.arange(0, 256)]).astype("uint8")
+    return cv2.LUT(image, table)
 
 #load model 
 
@@ -93,7 +100,7 @@ def loadModel(model_path):
     
     return kl  
     
-driveModel = loadModel('yolo.h5')
+driveModel = loadModel('GoogleAdam.h5')
 
 #connect to autonomous vehicle
 connectionResult = connect('/dev/ttyUSB0')
@@ -106,19 +113,18 @@ print("arduino connected!")
 
 time.sleep(3)
 
-controlThread = threading.Thread(target=main)
-controlThread.start()
+#controlThread = threading.Thread(target=main)
+#controlThread.start()
 
 while True:
-
     beginTime = datetime.datetime.now()
 
     ret, img = cap.read()
     if not ret:
+        print("video not found!")
         break
 
-    img = cv2.resize(img,(512,256))
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = adjust_gamma(img,2)
     cv2.imshow("IN", img)
 
     if framecount % 10 == 0:   
@@ -145,10 +151,10 @@ while True:
         colorized = args.dataset_cls.colorize_mask(pred)
         img = np.array(colorized.convert('RGB'))
         
-        img = cv2.resize(img,(160, 120))
         steeringValue, throttleValue= driveModel.run(img)
 
-        setDesiredSteeringAngle(steeringValue)
+        setDesiredSteeringAngle(steeringValue / 100)
+        setDesiredThrottle(throttleValue/ 100)
 
         endTime = datetime.datetime.now()
 
@@ -157,7 +163,7 @@ while True:
         if(elapsedTime.microseconds > 0.0):
             fps = round(1 / (elapsedTime.microseconds * 10**-6),2) 
             #cv2.putText(img,"fps: " + str(fps),(10,90), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),4,cv2.LINE_AA)
-            print("steeringValue > " + str(steeringValue) + " throttleValue > " + str(throttleValue) + " fps: " + str(fps))
+            #print("steeringValue > " + str(steeringValue) + " throttleValue > " + str(throttleValue) + " fps: " + str(fps))
 
         cv2.imshow("OUT", img) 
    

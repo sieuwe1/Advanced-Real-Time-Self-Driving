@@ -25,9 +25,9 @@ DRIVE_LOOP_HZ = 20      # the vehicle loop will pause if faster than this speed.
 MAX_LOOPS = None        # the vehicle loop can abort after this many iterations, when given a positive integer.
 
 #CAMERA
-CAMERA_TYPE = "PICAM"   # (PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK)
-IMAGE_W = 160
-IMAGE_H = 120
+CAMERA_TYPE = "WEBCAM"   # (PICAM|WEBCAM|CVCAM|CSIC|V4L|D435|MOCK)
+IMAGE_W = 512
+IMAGE_H = 256
 IMAGE_DEPTH = 3         # default RGB=3, make 1 for mono
 CAMERA_FRAMERATE = DRIVE_LOOP_HZ
 CAMERA_VFLIP = False
@@ -46,7 +46,7 @@ SSD1306_128_32_I2C_BUSNUM = 1 # I2C bus number
 #DRIVETRAIN
 #These options specify which chasis and motor setup you are using. Most are using SERVO_ESC.
 #DC_STEER_THROTTLE uses HBridge pwm to control one steering dc motor, and one drive wheel motor
-#DC_TWO_WHEEL uses HBridge pwm to control two drive motors, one on the left, and one on the right.
+#DC_TWO_WHEEL uses HBridge pwm to control two drivae motors, one on the left, and one on the right.
 #SERVO_HBRIDGE_PWM use ServoBlaster to output pwm control from the PiZero directly to control steering, and HBridge for a drive motor.
 DRIVE_TRAIN_TYPE = "SERVO_ESC" # SERVO_ESC|DC_STEER_THROTTLE|DC_TWO_WHEEL|SERVO_HBRIDGE_PWM
 
@@ -81,7 +81,8 @@ HBRIDGE_PIN_RIGHT_BWD = 13
 #between different neural network designs. You can override this setting by passing the command
 #line parameter --type to the python manage.py train and drive commands.
 DEFAULT_MODEL_TYPE = 'linear'   #(linear|categorical|rnn|imu|behavior|3d|localizer|latent)
-BATCH_SIZE = 128                #how many records to use when doing one pass of gradient decent. Use a smaller number if your gpu is running out of memory.
+#BATCH_SIZE = 128                #how many records to use when doing one pass of gradient decent. Use a smaller number if your gpu is running out of memory.
+BATCH_SIZE = 64
 TRAIN_TEST_SPLIT = 0.8          #what percent of records to use for training. the remaining used for validation.
 MAX_EPOCHS = 100                #how many times to visit all records of your data
 SHOW_PLOT = True                #would you like to see a pop up display of final loss?

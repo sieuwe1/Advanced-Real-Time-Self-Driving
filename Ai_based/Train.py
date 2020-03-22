@@ -287,7 +287,7 @@ def train(cfg, tub_names, model_name, transfer_model, model_type, continuous, au
     saves the output trained model as model_name
     ''' 
 
-    model_name = "yolo.h5"
+    model_name = "TrainedModel.h5"
     verbose = cfg.VERBOSE_TRAIN
 
     if model_type is None:
@@ -534,6 +534,8 @@ def train(cfg, tub_names, model_name, transfer_model, model_type, continuous, au
         steps_per_epoch = 100
     
     val_steps = num_val // cfg.BATCH_SIZE
+    print('batch size' , cfg.BATCH_SIZE)
+    print('val num' , num_val)
     print('steps_per_epoch', steps_per_epoch)
 
     cfg.model_type = model_type
