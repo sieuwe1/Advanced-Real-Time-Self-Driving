@@ -4,25 +4,29 @@ import time
 
 mapValues = True 
 
-steerSensorPin = 0
-minSteerSensorValue = 0.8348
-maxSteerSensorValue = 0.9198
+steerSensorPin = 2
+#minSteerSensorValue = 0.1253
+#maxSteerSensorValue = 0.3795
+minSteerSensorValue = 0.119
+maxSteerSensorValue = 0.4378
 
 throttleSensorPin = 1
 minThrottleSensorValue = 0.1700
-maxThrottleSensorValue = 0.7722
+maxThrottleSensorValue = 0.7720
 
 minThrottlePWM = 0 
-maxThrottlePWM = 0.5 #real max 1
+maxThrottlePWM = 1.5 #real max 1
 
 minSteeringPWM = 0 
 maxSteeringPWM = 0.6 #real max 1
+
+reverseSteering = -1 # make 1 to reverse steering
 
 arduinoNano = None
 leftPWM = None
 rightPWM = None 
 rightEnable = 3
-leftEnable = 4
+leftEnable = 5 
 throttlePin = None
 
 def connect(port):
@@ -33,8 +37,8 @@ def connect(port):
         it.start()
         arduinoNano.analog[steerSensorPin].enable_reporting()
         arduinoNano.analog[throttleSensorPin].enable_reporting()
-        leftPWM = arduinoNano.get_pin('d:9:p')
-        rightPWM = arduinoNano.get_pin('d:6:p')
+        leftPWM = arduinoNano.get_pin('d:6:p')
+        rightPWM = arduinoNano.get_pin('d:9:p')
         throttlePin = arduinoNano.get_pin('d:10:p')
         arduinoNano.digital[rightEnable].write(1)
         arduinoNano.digital[leftEnable].write(1)
@@ -60,10 +64,10 @@ def readValue():
             if(mapValues):
                 mappedSteeringPosition = mapSteerPisition(steerPosition, minSteerSensorValue, maxSteerSensorValue, -1, 1)
                 mappedThrottlePosition = mapThrottle(throttlePosition, minThrottleSensorValue, maxThrottleSensorValue, 0, 1)
-                print("readed steeringposition > " + str(mappedSteeringPosition) + " readed throttle " + str(mappedThrottlePosition))
-                return((mappedSteeringPosition,mappedThrottlePosition))
+                #print("readed steeringposition > " + str(mappedSteeringPosition) + " readed throttle " + str(mappedThrottlePosition))
+                return((mappedSteeringPosition * reverseSteering,mappedThrottlePosition))
             else:
-                print("readed steeringposition > " + str(steerPosition) + " readed throttle " + str(throttlePosition))
+                #print("readed steeringposition > " + str(steerPosition) + " readed throttle " + str(throttlePosition))
                 return((steerPosition,throttlePosition))
     else:
         return("error")
@@ -86,8 +90,8 @@ def writeValue(left,right,throttle):
         print("left right commando incorreect")
 
     mappedThrottle = round(map(throttle, 0, 1, minThrottlePWM, maxThrottlePWM),3)
+    #print("writing values left> " + str(mappedLeft) + " right> " + str(mappedRight) + " throttle> " + str(mappedThrottle))
     throttlePin.write(mappedThrottle)
-    print("writing values left> " + str(mappedLeft) + " right> " + str(mappedRight) + " throttle> " + str(mappedThrottle))
     
 
 def mapThrottle (value, fromSource,  toSource,  fromTarget,  toTarget):

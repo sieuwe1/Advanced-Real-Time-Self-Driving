@@ -10,6 +10,7 @@ from skimage import morphology
 import datetime
 import json
 import threading
+import freenect
 
 import torch
 from torch.backends import cudnn
@@ -26,11 +27,15 @@ from control import *
 import donkeycar as dk
 from donkeycar.utils import *
 
+#These offsets can be used when sensors where not placed correclty during training 
+steerOffset = -0.22; #Is added to predicted steer angle
+throttleOffset = 0; # is added to predicted throttle value
 
-parser = argparse.ArgumentParser(description='demo')
-parser.add_argument('--video', type=str, default='', help='path to video', required=True)
-parser.add_argument('--snapshot', type=str, default='./pretrained_models/cityscapes_best.pth', help='pre-trained checkpoint', required=True)
-parser.add_argument('--arch', type=str, default='network.deepv3.DeepWV3Plus', help='network architecture used for inference')
+parser = argparse.ArgumentParser(description='Drive autonomous')
+parser.add_argument('--debug', type=bool, default='False', help='enable debug messages')
+parser.add_argument('--video', type=str, default='.', help='path to video')
+parser.add_argument('--snapshot', type=str, default='./pretrained_models/cityscapes_cv0_seresnext50_nosdcaug.pth', help='pre-trained checkpoint')
+parser.add_argument('--arch', type=str, default='network.deepv3.DeepSRNX50V3PlusD_m1', help='network architecture used for inference')
 args = parser.parse_args()
 print(args)
 assert_and_infer_cfg(args, train_mode=False)
@@ -40,11 +45,10 @@ torch.cuda.empty_cache()
 #load donkeyCar config
 cfg = dk.load_config()
 
-#create data folder
-fileName = input("Press enter to start vehicle")
+#setup file writer 
+setupWriter(args.debug)
 
 print('starting segmentation network....')
-
 # get net
 args.dataset_cls = cityscapes
 net = network.get_net(args, criterion=None)
@@ -54,15 +58,15 @@ net, _ = restore_snapshot(net, optimizer=None, snapshot=args.snapshot, restore_o
 net.eval()
 print('Net restored.')
 
-# get data
 mean_std = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(*mean_std)])
-
-cap = cv2.VideoCapture(args.video)
 
 framecount = 0
 driveModel = None
 
+cap = cv2.VideoCapture(0)
+
+#help funtions 
 def filterConnectedComponents(pred):
     label_img, cc_num = ndimage.label(pred)
     sizes = ndimage.sum(pred, label_img, range(cc_num+1))
@@ -72,6 +76,32 @@ def filterConnectedComponents(pred):
     label_img[remove_pixel] = 0
     return label_img
 
+
+def draw_model_prediction(pilot_angle, pilot_throttle, img, color):
+    '''
+    query the model for it's prediction, draw the predictions
+    as a blue line on the image
+
+    Taken from https://github.com/autorope/donkeycar/blob/bd854d3de6b109d9ae711dba271305f4b4c0c55d/donkeycar/management/makemovie.py
+    '''
+
+    height, width, _ = img.shape
+
+    length = height
+    a2 = pilot_angle * 45.0
+    l2 = pilot_throttle * length
+
+    mid = width // 2 - 1
+
+    p2 = tuple((mid + 2, height - 1))
+    p22 = tuple((int(p2[0] + l2 * math.cos((a2 + 270.0) * (math.pi / 180.0))),
+                    int(p2[1] + l2 * math.sin((a2 + 270.0) * (math.pi / 180.0)))))
+
+    # user is green, pilot is blue
+    cv2.line(img, p2, p22, color, 2)
+
+    return img
+
 #brigthen image because xbox kinect rgb cam is pretty shitty
 def adjust_gamma(image, gamma):
     image = cv2.resize(image,(512,256))
@@ -80,14 +110,12 @@ def adjust_gamma(image, gamma):
     for i in np.arange(0, 256)]).astype("uint8")
     return cv2.LUT(image, table)
 
+def get_video():
+    array,_ = freenect.sync_get_video()
+    array = cv2.cvtColor(array,cv2.COLOR_RGB2BGR)
+    return array
+
 #load model 
-
-def load_model(kl, model_path):
-    start = time.time()
-    print('loading model', model_path)
-    kl.load(model_path)
-    print('finished loading in %s sec.' % (str(time.time() - start)) )
-
 def loadModel(model_path):
     #from donkeyCar file complete.py
     kl = dk.utils.get_model_by_type(cfg.DEFAULT_MODEL_TYPE, cfg)
@@ -96,11 +124,12 @@ def loadModel(model_path):
     if '.h5' in model_path or '.uff' in model_path or 'tflite' in model_path or '.pkl' in model_path:
         #when we have a .h5 extension
         #load everything from the model file
-        load_model(kl, model_path)
+         kl.load(model_path)
     
     return kl  
-    
-driveModel = loadModel('GoogleAdam.h5')
+
+#driveModel = loadModel('LinearRunFixed.h5')
+driveModel = loadModel('TrainedModel.h5')
 
 #connect to autonomous vehicle
 connectionResult = connect('/dev/ttyUSB0')
@@ -110,24 +139,32 @@ while connectionResult != "succes":
     connectionResult = connect('/dev/ttyUSB0')
 
 print("arduino connected!")
+input("Press enter to start vehicle")
 
-time.sleep(3)
 
-#controlThread = threading.Thread(target=main)
-#controlThread.start()
+#small workaround may fix later
+debugString = "False"
+if args.debug:
+    debugString = "True"
+    
+
+controlThread = threading.Thread(target=main, args=(debugString,))
+controlThread.start()
 
 while True:
     beginTime = datetime.datetime.now()
 
+    #img = get_video()
     ret, img = cap.read()
-    if not ret:
-        print("video not found!")
-        break
+    img = cv2.resize(img,(512,256))
 
-    img = adjust_gamma(img,2)
+    cv2.putText(img,"Frame: " + str(framecount),(10,90), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),4,cv2.LINE_AA)
     cv2.imshow("IN", img)
 
-    if framecount % 10 == 0:   
+    if args.debug:
+        writeInDebugImage(img)
+
+    if framecount % 5 == 0:   
         
         steeringValue = None
         throttleValue = None
@@ -142,19 +179,35 @@ while True:
 
         pred = pred.cpu().numpy().squeeze()
         pred = np.argmax(pred, axis=0)
-        
+            
         #apply connected component method to find largest connected object. Use this to only train the road to the network
         #smooth_pred = ndimage.gaussian_filter(pred,3.0)       
         #pred = filterConnectedComponents(smooth_pred)
-
+        
         #show
         colorized = args.dataset_cls.colorize_mask(pred)
         img = np.array(colorized.convert('RGB'))
         
-        steeringValue, throttleValue= driveModel.run(img)
+        kernel = np.ones((15,15),np.uint8)
+        img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
 
-        setDesiredSteeringAngle(steeringValue / 100)
-        setDesiredThrottle(throttleValue/ 100)
+        median = cv2.medianBlur(img, 17)
+
+        pred_img = median.astype(np.float32) / 255.0
+
+        steeringValue, throttleValue = driveModel.run(pred_img)
+
+        steeringValue = steeringValue + steerOffset
+        throttleValue = throttleValue + throttleOffset
+
+        img = draw_model_prediction(steeringValue, throttleValue, img, (0, 0, 255))
+
+        setDesiredSteeringAngle(steeringValue)
+        setDesiredThrottle(throttleValue)
+
+        currentSteeringValue, currentThrottleValue = getCurrentStatus()
+
+        img = draw_model_prediction(currentSteeringValue, currentThrottleValue, img, (0, 255, 255))
 
         endTime = datetime.datetime.now()
 
@@ -162,11 +215,14 @@ while True:
     
         if(elapsedTime.microseconds > 0.0):
             fps = round(1 / (elapsedTime.microseconds * 10**-6),2) 
-            #cv2.putText(img,"fps: " + str(fps),(10,90), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),4,cv2.LINE_AA)
-            #print("steeringValue > " + str(steeringValue) + " throttleValue > " + str(throttleValue) + " fps: " + str(fps))
+            print("steeringValue > " + str(steeringValue) + " throttleValue > " + str(throttleValue) + " fps: " + str(fps))
 
         cv2.imshow("OUT", img) 
    
+        if args.debug:
+            writeOutDebugImage(img)
+            writeAngleAndThrottle(steeringValue,throttleValue,framecount)
+
     k = cv2.waitKey(1)
     if k == 27:
         break

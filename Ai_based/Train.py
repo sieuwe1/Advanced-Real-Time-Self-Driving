@@ -65,7 +65,7 @@ def make_key(sample):
 
 def make_next_key(sample, index_offset):
     tub_path = sample['tub_path']
-    index = sample['index'] + index_offset
+    index = sample['index'] + index_offset * 10
     return tub_path + str(index)
 
 
@@ -724,6 +724,7 @@ def sequence_train(cfg, tub_names, model_name, transfer_model, model_type, conti
 
     for record_path in records:
 
+        print("Opening record: ", record_path)
         with open(record_path, 'r') as fp:
             json_data = json.load(fp)
 
@@ -768,6 +769,7 @@ def sequence_train(cfg, tub_names, model_name, transfer_model, model_type, conti
 
         for i in range(target_len):
             key = make_next_key(sample, i)
+            print("key: " + str(key))
             if key in gen_records:
                 seq.append(gen_records[key])
             else:

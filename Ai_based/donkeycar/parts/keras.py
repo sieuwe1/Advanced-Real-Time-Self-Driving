@@ -164,9 +164,8 @@ class KerasLinear(KerasPilot):
     def run(self, img_arr):
         img_arr = img_arr.reshape((1,) + img_arr.shape)
         outputs = self.model.predict(img_arr)
-        steering = outputs[0]
-        throttle = outputs[1]
-        return steering[0][0], throttle[0][0]
+        #print(outputs[0])
+        return outputs[0]
 
 
 
@@ -315,7 +314,7 @@ def default_categorical(input_shape=(120, 160, 3), roi_crop=(0, 0)):
 
 
 
-def default_n_linear(num_outputs, input_shape=(120, 160, 3), roi_crop=(0, 0)):
+def default_n_linearOriginal(num_outputs, input_shape=(256, 512, 3), roi_crop=(0, 0)):
 
     drop = 0.1
 
@@ -342,12 +341,42 @@ def default_n_linear(num_outputs, input_shape=(120, 160, 3), roi_crop=(0, 0)):
     x = Dropout(drop)(x)
 
     outputs = []
-    
+
     for i in range(num_outputs):
         outputs.append(Dense(1, activation='linear', name='n_outputs' + str(i))(x))
         
     model = Model(inputs=[img_in], outputs=outputs)
     
+    return model
+
+def default_n_linear(num_outputs, input_shape=(256, 512, 3), roi_crop=(0, 0)):
+
+    drop = 0.1
+
+    input_shape = adjust_input_shape(input_shape, roi_crop)
+    
+    model = Sequential()
+    model.add(Convolution2D(24, (5,5), strides=(2,2), activation='relu', name="conv2d_1", input_shape=input_shape))
+    model.add(Dropout(drop))
+    model.add(Convolution2D(32, (5,5), strides=(2,2), activation='relu', name="conv2d_2"))
+    model.add(Dropout(drop))
+    model.add(Convolution2D(64, (5,5), strides=(2,2), activation='relu', name="conv2d_3"))
+    model.add(Dropout(drop))
+    model.add(Convolution2D(64, (3,3), strides=(1,1), activation='relu', name="conv2d_4"))
+    model.add(Dropout(drop))
+    model.add(Convolution2D(64, (3,3), strides=(1,1), activation='relu', name="conv2d_5"))
+    model.add(Dropout(drop))
+    
+    model.add(Flatten(name='flattened'))
+    model.add(Dense(100, activation='relu'))
+    model.add(Dropout(drop))
+    model.add(Dense(50, activation='relu'))
+    model.add(Dropout(drop))
+
+
+    model.add(Dense(num_outputs))
+    model.add(Activation('linear'))
+
     return model
 
 
@@ -638,7 +667,7 @@ def build_3d_cnn(w, h, d, s, num_outputs):
     model.add(Dropout(0.5))
 
     model.add(Dense(num_outputs))
-    #model.add(Activation('tanh'))
+    model.add(Activation('tanh'))
 
     return model
 

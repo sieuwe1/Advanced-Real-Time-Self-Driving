@@ -9,6 +9,7 @@ import skimage
 from skimage import morphology
 import datetime
 import json
+import freenect
 
 import torch
 from torch.backends import cudnn
@@ -20,27 +21,20 @@ from datasets import cityscapes
 from config import assert_and_infer_cfg
 
 from vehicleSerial import *
+from fileWriter import *
 
-parser = argparse.ArgumentParser(description='demo')
-parser.add_argument('--video', type=str, default='', help='path to video', required=True)
-parser.add_argument('--snapshot', type=str, default='./pretrained_models/cityscapes_best.pth', help='pre-trained checkpoint', required=True)
-parser.add_argument('--arch', type=str, default='network.deepv3.DeepWV3Plus', help='network architecture used for inference')
+parser = argparse.ArgumentParser(description='drive training data')
+parser.add_argument('--savevideo', type=str, default='', help='save incoming video')
+parser.add_argument('--snapshot', type=str, default='./pretrained_models/cityscapes_cv0_seresnext50_nosdcaug.pth', help='pre-trained checkpoint')
+parser.add_argument('--arch', type=str, default='network.deepv3.DeepSRNX50V3PlusD_m1', help='network architecture used for inference')
 args = parser.parse_args()
 print(args)
 assert_and_infer_cfg(args, train_mode=False)
 cudnn.benchmark = False
+beginTime = datetime.date
 torch.cuda.empty_cache()
 
-#create data folder
-fileName = input("please type name of this run. This will be the name of the Data folder> ")
-
-current_directory = os.getcwd()
-data_dir = os.path.join(current_directory, fileName)
-try:
-    os.mkdir(data_dir)
-    print("Directory " , data_dir ,  " Created ") 
-except FileExistsError:
-    print("Directory " , data_dir ,  " already exists")
+setupWriter(False)
 
 print('starting segmentation network....')
 
@@ -58,26 +52,43 @@ mean_std = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 img_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(*mean_std)])
 
 #cap = cv2.VideoCapture(args.video)
-cap = cv2.VideoCapture(0)
 
 framecount = 0
 
 prevFrame = None
 
-def adjust_gamma(image, gamma):
-    image = cv2.resize(image,(512,256))
-    #invGamma = 1.0 / gamma
-    #table = np.array([((i / 255.0) ** invGamma) * 255
-    #for i in np.arange(0, 256)]).astype("uint8")
-    #return cv2.LUT(image, table)
-    return image
+
+def draw_user_angle(pilot_angle, pilot_throttle, img):
+    '''
+    query the model for it's prediction, draw the predictions
+    as a blue line on the image
+
+    Taken from https://github.com/autorope/donkeycar/blob/bd854d3de6b109d9ae711dba271305f4b4c0c55d/donkeycar/management/makemovie.py
+    '''
+
+    height, width, _ = img.shape
+
+    length = height
+    a2 = pilot_angle * 45.0
+    l2 = pilot_throttle * length
+
+    mid = width // 2 - 1
+
+    p2 = tuple((mid + 2, height - 1))
+    p22 = tuple((int(p2[0] + l2 * math.cos((a2 + 270.0) * (math.pi / 180.0))),
+                    int(p2[1] + l2 * math.sin((a2 + 270.0) * (math.pi / 180.0)))))
+
+    # user is green, pilot is blue
+    cv2.line(img, p2, p22, (0, 0, 255), 2)
+
+    return img
 
 
 def filterConnectedComponents(pred):
     label_img, cc_num = ndimage.label(pred)
     sizes = ndimage.sum(pred, label_img, range(cc_num+1))
     #print(sizes)
-    mask_size = sizes < 100000
+    mask_size = sizes < 50
     remove_pixel = mask_size[label_img]
     label_img[remove_pixel] = 0
     return label_img
@@ -85,17 +96,10 @@ def filterConnectedComponents(pred):
 def map(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
-def writeData(angle, throttle, image):
-
-    camName = str(framecount) + '_cam-image_array_.jpg'
-    camPath = os.path.join(data_dir, camName)
-    cv2.imwrite(camPath, image) 
-    json_data = {"user/angle": angle, "cam/image_array": camName, "user/throttle": throttle, "user/mode": "user", "timestamp": int(time.time())}
-    
-    jsonName = "record_" + str(framecount) + '.json'
-    jsonPath = os.path.join(data_dir, jsonName)
-    with open(jsonPath, "w") as write_file:
-        json.dump(json_data, write_file)
+def get_video():
+    array,_ = freenect.sync_get_video()
+    array = cv2.cvtColor(array,cv2.COLOR_RGB2BGR)
+    return array
 
 #connect to autonomous vehicle
 connectionResult = connect('/dev/ttyUSB0')
@@ -106,65 +110,63 @@ while connectionResult != "succes":
 
 print("arduino connected!")
 
+if args.savevideo:
+    out = cv2.VideoWriter("OcciRunBad" + ".avi", cv2.VideoWriter_fourcc('M','J','P','G'),10,(512,256))
+
+cap = cv2.VideoCapture(0)
+
 while True:
 
-    beginTime = datetime.datetime.now()
-
+    #img = get_video()
     ret, img = cap.read()
     if not ret:
         break
 
-    img = adjust_gamma(img,2)
+    img = cv2.resize(img,(512,256))
     cv2.imshow("IN", img)
+    
+    if args.savevideo:
+        out.write(img)
 
-    if framecount % 10 == 0:   
+    if framecount % 5 == 0:   
         #reading steering and throttle value as fast as possible to make sure there is no delay
         
-        steeringValue = None
-        throttleValue = None
+        steeringValue, throttleValue = readValue()
 
-        result = readValue()
-        if result == "error":
-            print("!!!CONNECTION ERROR PRESS STOP EMEDIATLY!!!")
-            break
-        
-        else: 
-            steeringValue = result[0]
-            throttleValue = result[1]
+        if steeringValue != -1 or steeringValue != 1:
+            img2 = img
+            img_tensor = img_transform(img2)
 
-        img2 = img
-        img_tensor = img_transform(img2)
+            # predict
+            with torch.no_grad():
+                img2 = img_tensor.unsqueeze(0).cuda().cpu()
+                pred = net(img2)
 
-        # predict
-        with torch.no_grad():
-            img2 = img_tensor.unsqueeze(0).cuda().cpu()
-            pred = net(img2)
+            pred = pred.cpu().numpy().squeeze()
+            pred = np.argmax(pred, axis=0)
+ 
+            colorized = args.dataset_cls.colorize_mask(pred)
+            img = np.array(colorized.convert('RGB'))
+            kernel = np.ones((15,15),np.uint8)
+            img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
 
-        pred = pred.cpu().numpy().squeeze()
-        pred = np.argmax(pred, axis=0)
-        
-        #apply connected component method to find largest connected object. Use this to only train the road to the network
-        #smooth_pred = ndimage.gaussian_filter(pred,3.0)       
-        #pred = filterConnectedComponents(smooth_pred)
+            median = cv2.medianBlur(img, 17)
 
-        #show
-        colorized = args.dataset_cls.colorize_mask(pred)
-        img = np.array(colorized.convert('RGB'))
+            #write data to disk for training
+            writeTrainData(steeringValue,throttleValue,median,int(framecount/5))
 
-        #write data to disk for training
-        writeData(steeringValue,throttleValue,img)
+            #endTime = datetime.datetime.now()
 
-        endTime = datetime.datetime.now()
+            #elapsedTime = endTime - beginTime
+            #if(elapsedTime.microseconds > 0.0):
+            #    fps = round(1 / (elapsedTime.microseconds * 10**-6),2) 
+                #cv2.putText(img,"fps: " + str(fps),(10,90), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),4,cv2.LINE_AA)
 
-        elapsedTime = endTime - beginTime
-        if(elapsedTime.microseconds > 0.0):
-            fps = round(1 / (elapsedTime.microseconds * 10**-6),2) 
-            #cv2.putText(img,"fps: " + str(fps),(10,90), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,0,255),4,cv2.LINE_AA)
-            print("fps: " + str(fps))
+            #print(str(steeringValue) + ", " + str(throttleValue))
+            median = draw_user_angle(steeringValue,throttleValue,median)
 
-        print(str(steeringValue) + ", " + str(throttleValue))
-        cv2.imshow("OUT", img) 
-   
+            cv2.imshow("OUT", median) 
+    
     k = cv2.waitKey(1)
     if k == 27:
         break

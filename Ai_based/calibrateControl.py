@@ -14,7 +14,9 @@ print("arduino connected!")
 
 time.sleep(3)
 
-controlThread = threading.Thread(target=main)
+debugString = False
+
+controlThread = threading.Thread(target=main, args=(debugString,))
 controlThread.start()
 print("starting...")
 
