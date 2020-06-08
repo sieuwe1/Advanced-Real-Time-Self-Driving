@@ -76,7 +76,7 @@ https://drive.google.com/file/d/1aGdA1WAKKkU2y-87wSOE1prwrIzs_L-h/view
 # Run
 For a quick demo to test if the envoirement is setup correctly use the below command. This will run both a pretrained drive model together with the segmentation model but this wont try to make a connection with the ATV. So this can just be ran without any hardware connected. 
 ```
-CUDA_VISIBLE_DEVICES=0 python3 SegmentationOnly.py --video .
+CUDA_VISIBLE_DEVICES=0 python3 SegmentationOnly.py --video pathToVideoFile
 ```
 
 For a complete run with a ATV run this:
@@ -86,7 +86,7 @@ CUDA_VISIBLE_DEVICES=0 python3 driveAutonomous.py
 
 To train with your own data first drive a lot of traning runs with this command: 
 ```
- python3 Train.py --model=trained --type=linear
+ CUDA_VISIBLE_DEVICES=0 python3 driveTrainData.py 
 ```
 
 Make sure you first callibrated your steering and throttle sensors using the steps provided in the 
