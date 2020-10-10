@@ -73,6 +73,9 @@ https://drive.google.com/file/d/1aGdA1WAKKkU2y-87wSOE1prwrIzs_L-h/view
 * ninja
 * pandas
 
+# New Instructions!
+https://www.instructables.com/How-You-Can-Make-a-Fully-Autonomous-Self-Driving-V/
+
 # Run
 For a quick demo to test if the envoirement is setup correctly use the below command. This will run both a pretrained drive model together with the segmentation model but this wont try to make a connection with the ATV. So this can just be ran without any hardware connected. 
 ```
