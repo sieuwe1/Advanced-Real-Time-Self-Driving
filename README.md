@@ -2,6 +2,8 @@
 
 ![](https://github.com/sieuwe1/Advanced-Real-Time-Self-Driving/blob/master/Ai_based/RealLifeDemo.gif)
 
+# Version 2 coming soon!
+
 ## Intro
 The goal of this project is to make an electric ATV drive autonomosly over normal roads using an xbox kinect Camera and state of the art video processing technolgies. The electric ATV is fitted with an windshield wiper motor and costum control/feedback circuitry to control the steering and acceleration. An Arduino with Serial comminucation is used to communicate with the main computer also fitted on the ATV. The main computer has an GTX1080 to run the detection model. The Detection model and Control module are written in python. 
 
