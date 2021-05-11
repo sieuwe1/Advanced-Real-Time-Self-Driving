@@ -1,4 +1,4 @@
-# Advanced RealTime Road Detection and Autonomous Vehicle Control using Convolutional Neural Networks and END-TO-END Driving Models. 
+# V2.0 Advanced RealTime Road Detection and Autonomous Vehicle Control using Convolutional Neural Networks and END-TO-END Driving Models. 
 
 ![](https://github.com/sieuwe1/Advanced-Real-Time-Self-Driving/blob/master/Ai_based/RealLifeDemo.gif)
 
