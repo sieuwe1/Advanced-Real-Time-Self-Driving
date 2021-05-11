@@ -1,7 +1,0 @@
-how to calibrate. 
-
-1 Go to vehicleSerial.py and make sure mapValues = False
-2 Go to findActuatorLimits.py and run it
-3 follow the instructions 
-4 copy paste the values from the finactuatorsLimits.py script into the contol.py script
-5 change the mapValues to True
