@@ -1,4 +1,4 @@
-ckpt
+.gitignore ckpt
 setenv
 weights
 *~
